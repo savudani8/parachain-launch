@@ -87,7 +87,7 @@ const getChainspec = (image: string, chain: string) => {
  * @param config
  * @param output
  */
-const exportParachainGenesis = (parachain: Parachain, output: string) => {
+const exportParachainGenesis = (config: Config, parachain: Parachain, output: string) => {
   if (!parachain.image) {
     return fatal('Missing parachains[].image');
   }
@@ -109,12 +109,12 @@ const exportParachainGenesis = (parachain: Parachain, output: string) => {
   // }.json`);
 
   let res2 = exec(
-      `docker run -v $(pwd)/"${output}":/app --rm ${parachain.image} ${chain} export-genesis-wasm`
+      `docker run -v $(pwd)/"${output}":/app --rm ${parachain.image} ${chain} export-genesis-wasm --chain=${config.relaychain.chain}-${parachain.id}`
     );
   const wasm = res2.stdout.trim();
 
   const res = exec(
-    `docker run -v $(pwd)/"${output}":/app --rm ${parachain.image} ${chain} export-genesis-state`
+    `docker run -v $(pwd)/"${output}":/app --rm ${parachain.image} ${chain} export-genesis-state --chain=${config.relaychain.chain}-${parachain.id}`
   );
   const state = res.stdout.trim();
 
@@ -199,7 +199,7 @@ const generateRelaychainGenesisFile = (config: Config, path: string, output: str
 
   // genesis parachains
   for (const parachain of config.parachains) {
-    const { wasm, state } = exportParachainGenesis(parachain, output);
+    const { wasm, state } = exportParachainGenesis(config, parachain, output);
     if (!parachain.id) {
       return fatal('Missing parachains[].id');
     }
@@ -218,7 +218,7 @@ const generateRelaychainGenesisFile = (config: Config, path: string, output: str
   fs.writeFileSync(tmpfile, jsonStringify(spec));
 
   exec(
-    `docker run --rm -v "${tmpfile}":/${config.relaychain.chain}.json ${config.relaychain.image} build-spec --raw --chain=/${config.relaychain.chain}.json --disable-default-bootnode > ${path}`
+    `docker run --rm -v "${tmpfile}":/${config.relaychain.chain}.json ${config.relaychain.image} build-spec --raw --chain=${config.relaychain.chain}.json --disable-default-bootnode > ${path}`
   );
 
   shell.rm(tmpfile);
