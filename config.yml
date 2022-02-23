@@ -13,13 +13,15 @@ relaychain:
     - --rpc-methods=unsafe
   nodes: # nodes config
     - name: alice # the node name and session key, this imply `--alice`
-      wsPort: 9944 # default ws port number is `9944 + global_node_index`
-      rpcPort: 9933 # default rpc port number is `9933 + global_node_index`
-      port: 30333 # default libp2p port number is `30333 + global_node_index`
+      wsPort: 9947 # default ws port number is `9944 + global_node_index`
+      rpcPort: 9936 # default rpc port number is `9933 + global_node_index`
+      port: 30336 # default libp2p port number is `30333 + global_node_index`
       flags: # additional CLI flags for this node
         - --force-authoring
       env:
         RUST_LOG: babe=debug # environment varitables for this node
+    - name: bob
+    - name: charlie
 
 # Parachain Configuration
 parachains:
@@ -29,7 +31,6 @@ parachains:
     base: interbtc-parachain # the chain to use
     collators:
       - alice
-      - bob
   id: 2000 # override parachain id
   parachain: true # this is parachain, not parathread
   flags: # CLI flags for this parachain nodes
@@ -41,9 +42,9 @@ parachains:
   env: # environment variables for this parachain nodes
     RUST_LOG: sc_basic_authorship=trace
   nodes: # nodes config
-  - wsPort: 9947
-    rpcPort: 9936
-    port: 30336
+  - wsPort: 9944
+    rpcPort: 9933
+    port: 30333
     flags: # additional CLI flags for this node
       - --alice
     relaychainFlags: # additional CLI flags for relaychian part

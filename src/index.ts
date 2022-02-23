@@ -62,10 +62,10 @@ const fatal = (...args: any[]) => {
  * @param image
  * @param chain
  */
-const getChainspec = (image: string, chain: string) => {
+const getChainspec = (config: Config, image: string, chain: string, paraId?: number) => {
   let res;
   if (image.includes("interlay")) {
-    res = exec(`docker run --rm ${image} ${chain} build-spec --chain=rococo-local-2000 --disable-default-bootnode`);
+    res = exec(`docker run --rm ${image} ${chain} build-spec --chain=${config.relaychain.chain}-${paraId} --disable-default-bootnode`);
   } else {
     res = exec(`docker run --rm ${image} build-spec --chain=${chain} --disable-default-bootnode`);
   }
@@ -148,7 +148,7 @@ const generateRelaychainGenesisFile = (config: Config, path: string, output: str
     return fatal('Missing relaychain.image');
   }
 
-  const spec = getChainspec(relaychain.image, relaychain.chain);
+  const spec = getChainspec(config, relaychain.image, relaychain.chain);
 
   // clear authorities
   const runtime = spec.genesis.runtime.runtime_genesis_config || spec.genesis.runtime;
@@ -289,6 +289,7 @@ const setParachainRuntimeValue = (runtime: { [index: string]: any }, key: string
  * @param yes
  */
 const generateParachainGenesisFile = (
+  config: Config, 
   id: number,
   image: string,
   chain: Chain | string,
@@ -314,7 +315,7 @@ const generateParachainGenesisFile = (
 
   checkOverrideFile(filepath, yes);
 
-  const spec = getChainspec(image, chain.base);
+  const spec = getChainspec(config, image, chain.base, id);
 
   spec.bootNodes = [];
 
@@ -413,7 +414,7 @@ const generate = async (config: Config, { output, yes }: { output: string; yes: 
     return fatal('Missing relaychain.chain');
   }
 
-  const relaychainGenesisFilePath = path.join(output, `${config.relaychain.chain}.json`);
+  const relaychainGenesisFilePath = path.join(output, `${config.relaychain.chain}-raw.json`);
   checkOverrideFile(relaychainGenesisFilePath, yes);
 
   const dockerComposePath = path.join(output, 'docker-compose.yml');
@@ -424,9 +425,6 @@ const generate = async (config: Config, { output, yes }: { output: string; yes: 
 
   generateRelaychainGenesisFile(config, relaychainGenesisFilePath, output);
 
-  for (const parachain of config.parachains) {
-    generateParachainGenesisFile(parachain.id, parachain.image, parachain.chain, output, yes);
-  }
   generateDockerfiles(config, output, yes);
 
   const dockerCompose: DockerConfig = {
@@ -458,7 +456,7 @@ const generate = async (config: Config, { output, yes }: { output: string; yes: 
       },
       command: [
         '--base-path=/data',
-        `--chain=/app/${config.relaychain.chain}.json`,
+        `--chain=/app/${config.relaychain.chain}-raw.json`,
         '--validator',
         '--ws-external',
         '--rpc-external',
@@ -514,7 +512,7 @@ const generate = async (config: Config, { output, yes }: { output: string; yes: 
             : `--bootnodes=/dns/parachain-${parachain.id}-0/tcp/30333/p2p/${nodeAddress}`,
           '--listen-addr=/ip4/0.0.0.0/tcp/30333',
           '--',
-          `--chain=/app/${config.relaychain.chain}.json`,
+          `--chain=/app/${config.relaychain.chain}-raw.json`,
           ...(parachain.relaychainFlags || []),
           ...(parachainNode.relaychainFlags || []),
         ],
