@@ -20,16 +20,27 @@ relaychain:
         - --force-authoring
       env:
         RUST_LOG: babe=debug # environment varitables for this node
+    - name: bob
+    - name: charlie
 
 # Parachain Configuration
 parachains:
 # Config for first parachain
-- image: interlayhq/interbtc:interbtc-parachain-1.7.1
+- image: acala/karura-node:2.3.1
   chain: # this could be a string like `dev` or a config object
-    base: interbtc-parachain # the chain to use
-    collators:
-      - alice
-      - bob
+    base: karura-dev # the chain to use
+    collators: # override collators
+      - alice # this imply //Alice
+      - 5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty # or could be a session key public address
+      - charlie
+    sudo: alice # override sudo key to //Alice
+    runtimeGenesisConfig: # additonal genesis override
+      balances:
+        balances:
+          - [5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty, 10000000000000000]
+      tokens:
+        balances:
+          - [5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty, { token: 'KUSD' }, 10000000000000000]
   id: 2000 # override parachain id
   parachain: true # this is parachain, not parathread
   flags: # CLI flags for this parachain nodes
@@ -40,6 +51,7 @@ parachains:
     - --execution=wasm
   env: # environment variables for this parachain nodes
     RUST_LOG: sc_basic_authorship=trace
+  volumePath: /acala/data # The path to mount volume and base path, default to /data
   nodes: # nodes config
   - wsPort: 9947
     rpcPort: 9936
@@ -52,3 +64,5 @@ parachains:
       RUST_LOG: aura=debug # environment varitables for this node
   - flags:
     - --bob
+  - flags:
+    - --charlie

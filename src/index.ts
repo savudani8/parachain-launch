@@ -63,7 +63,12 @@ const fatal = (...args: any[]) => {
  * @param chain
  */
 const getChainspec = (image: string, chain: string) => {
-  const res = exec(`docker run --rm ${image} build-spec --chain=${chain} --disable-default-bootnode`);
+  let res;
+  if (image.includes("interlay")) {
+    res = exec(`docker run --rm ${image} ${chain} build-spec --chain=rococo-local-2000 --disable-default-bootnode`);
+  } else {
+    res = exec(`docker run --rm ${image} build-spec --chain=${chain} --disable-default-bootnode`);
+  }
 
   let spec;
 
@@ -89,21 +94,27 @@ const exportParachainGenesis = (parachain: Parachain, output: string) => {
 
   const args = [];
 
+  const chain = typeof parachain.chain === 'string' ? parachain.chain : parachain.chain.base;
+
   if (parachain.chain) {
     args.push(
-      `--chain=/app/${typeof parachain.chain === 'string' ? parachain.chain : parachain.chain.base}-${
+      `--chain=/app/${chain}-${
         parachain.id
       }.json`
     );
   }
 
-  const res2 = exec(
-    `docker run -v $(pwd)/"${output}":/app --rm ${parachain.image} export-genesis-wasm ${args.join(' ')}`
-  );
+  // exec(`cat /app/${typeof parachain.chain === 'string' ? parachain.chain : parachain.chain.base}-${
+  //   parachain.id
+  // }.json`);
+
+  let res2 = exec(
+      `docker run -v $(pwd)/"${output}":/app --rm ${parachain.image} ${chain} export-genesis-wasm`
+    );
   const wasm = res2.stdout.trim();
 
   const res = exec(
-    `docker run -v $(pwd)/"${output}":/app --rm ${parachain.image} export-genesis-state ${args.join(' ')}`
+    `docker run -v $(pwd)/"${output}":/app --rm ${parachain.image} ${chain} export-genesis-state`
   );
   const state = res.stdout.trim();
 
@@ -238,7 +249,7 @@ const getAddress = (val: string) => {
  * @param image
  */
 const generateNodeKey = (image: string) => {
-  const res = exec(`docker run --rm ${image} key generate-node-key`);
+  const res = exec(`docker run --rm parity/subkey generate-node-key`);
   return {
     key: res.stdout.trim(),
     address: res.stderr.trim(),
@@ -410,11 +421,12 @@ const generate = async (config: Config, { output, yes }: { output: string; yes: 
 
   fs.mkdirSync(output, { recursive: true });
 
+
+  generateRelaychainGenesisFile(config, relaychainGenesisFilePath, output);
+
   for (const parachain of config.parachains) {
     generateParachainGenesisFile(parachain.id, parachain.image, parachain.chain, output, yes);
   }
-
-  generateRelaychainGenesisFile(config, relaychainGenesisFilePath, output);
   generateDockerfiles(config, output, yes);
 
   const dockerCompose: DockerConfig = {
@@ -487,10 +499,9 @@ const generate = async (config: Config, { output, yes }: { output: string; yes: 
           dockerfile: `parachain-${parachain.id}.Dockerfile`,
         },
         command: [
+          `${typeof parachain.chain === 'string' ? parachain.chain : parachain.chain.base}`,
           `--base-path=${volumePath}`,
-          `--chain=/app/${typeof parachain.chain === 'string' ? parachain.chain : parachain.chain.base}-${
-            parachain.id
-          }.json`,
+          `--chain=${config.relaychain.chain}-${parachain.id}`,
           '--ws-external',
           '--rpc-external',
           '--rpc-cors=all',
